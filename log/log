@@ -1,0 +1,34 @@
+time:Mar 15 14:46:36 hostname:bogon ip:127.0.0.1 program_name:LogHeader  msg: HELLO,LOGGER
+time:Mar 15 14:47:00 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: start sock success
+time:Mar 15 14:47:07 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: accept_request,success exec cgi program
+time:Mar 15 14:47:10 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send_file success
+time:Mar 15 14:47:10 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: accept_request success send a html
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send_file success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: accept_request success send a html
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:13 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send not_found information success
+time:Mar 15 14:47:15 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send_file success
+time:Mar 15 14:47:15 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: accept_request success send a html
+time:Mar 15 14:47:18 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send_file success
+time:Mar 15 14:47:18 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: accept_request success send a html
+time:Mar 15 14:47:23 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send_file success
+time:Mar 15 14:47:23 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: accept_request success send a html
+time:Mar 15 14:47:25 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: send_file success
+time:Mar 15 14:47:25 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: accept_request success send a html
+time:Mar 15 14:47:26 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: accept_request,success exec cgi program
+time:Mar 15 14:47:31 hostname:bogon ip:127.0.0.1 program_name:httpd  msg: accept_request,success exec cgi program
