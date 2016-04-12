@@ -121,7 +121,7 @@ void accept_request(void* sock)
 
 		method[j] = buf[i];
 		i++,j++;
-	}
+	
 	method[j] = '\0';
 	if(strcasecmp(method ,"GET") && strcasecmp(method ,"POST"))
 	{
