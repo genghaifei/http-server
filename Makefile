@@ -18,7 +18,7 @@ ${CLI_BIN}:${CLI_SRC}
 	@${CC} ${FLAGS} $@ $^ ${LDFLAGS} #-gdwarf-2
 
 ${SER_BIN}:${SER_SRC}
-	@${CC} ${FLAGS} $@ $^ ${LDFLAGS} #-gdwarf-2
+	@${CC} ${FLAGS} $@ $^ ${LDFLAGS} -gdwarf-2
 .PHONY:cgi
 MAKE=make
 cgi:

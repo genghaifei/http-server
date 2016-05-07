@@ -16,6 +16,14 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <sys/syslog.h>
+#include <sys/epoll.h>
+
+struct all_fd
+{
+	int listen_sock;
+	int epollfd;
+};
+#define MAX_EVENT_NUMBER 1024
 #define BUFFER_SIZE 1024
 #define _BACK_LOG_ 5
 #endif
