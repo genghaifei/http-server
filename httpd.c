@@ -1,5 +1,21 @@
 #include "httpd.h"
 
+
+void addfd(int epollfd,int fd);
+int setnonblocking(int fd);
+void send_file(int sock_client,char *path,int file_size);
+void execute_cgi(int sock_client,char *path,char *method,char *query_string);
+void bad_request(int sock_client);
+void erase_head(int sock_client);
+void not_found(int sock_client);
+void accept_request(void* sock);
+void unimplement(int sock_client);
+int get_line(int sockfd,char buf[],int buf_size);
+int start(short *port);
+void  set_sock_reuse_port(int listenfd);
+void print_log(const char* fun,const int line,const int error_no,const char* error);
+void usage(const char* proc);
+	
 void usage(const char* proc)
 {
 	printf("port...%s\n",proc);
@@ -61,9 +77,12 @@ int get_line(int sockfd,char buf[],int buf_size)
 	char c = '\0';
 	int n = 0;
 	int i=0;
+	int flag = 0;
 	while(buf_size - 1>0 && c != '\n')
 	{
-		recv(sockfd,&c,1,NULL);
+		flag = recv(sockfd,&c,1,NULL);
+		if (flag == -1)
+			return 0;
 		if (c == '\r')
 		{
 			n = recv(sockfd,&c,1,MSG_PEEK);
@@ -94,17 +113,18 @@ void unimplement(int sock_client)
 void accept_request(void* sock)
 {
 
-	int sock_client = (int)sock;
+	int sock_client = ((struct all_fd*)sock)->listen_sock;
+	int epollfd = ((struct all_fd*)sock)->epollfd;
 	int cgi = 0;
 	char buf[BUFFER_SIZE];
-	char method[255];
 	char *query_string;
 	char url[BUFFER_SIZE];
 	char path[BUFFER_SIZE];
-	memset(buf,'\0',sizeof(buf));
-	memset(method,'\0',sizeof(method));
-	memset(url,'\0',sizeof(url));
-	memset(path,'\0',sizeof(path));
+	char method[BUFFER_SIZE];
+	bzero(buf,sizeof(buf));
+	bzero(url,sizeof(url));
+	bzero(path,sizeof(path));
+	bzero(method,sizeof(method));
 	int i = 0,j = 0;
 	int numbers;
 	struct stat st;
@@ -121,7 +141,7 @@ void accept_request(void* sock)
 
 		method[j] = buf[i];
 		i++,j++;
-	
+	}	
 	method[j] = '\0';
 	if(strcasecmp(method ,"GET") && strcasecmp(method ,"POST"))
 	{
@@ -152,6 +172,22 @@ void accept_request(void* sock)
 		cgi = 0;
 	}
 
+	if ( !strcasecmp(method,"POST"))
+	{
+		cgi = 1;
+	}
+	
+	sprintf(path,"htdocs%s",url);
+	if (path[strlen(path)-1] == '/')
+	{//if the path is a dir then return the static file
+		strcat(path,"index.html");
+			query_string++;
+		
+		if (*query_string == '?')
+			*query_string = '\0';
+		query_string++;
+		cgi = 0;
+	}
 	if ( !strcasecmp(method,"POST"))
 	{
 		cgi = 1;
@@ -392,6 +428,24 @@ void send_file(int sock_client,char *path,int file_size)
 	syslog(LOG_DEBUG,"send_file success");
 }
 
+int setnonblocking(int fd)
+{
+	int old_option = fcntl(fd,F_GETFL);
+	int new_option = old_option | O_NONBLOCK;
+	fcntl(fd,F_SETFL,new_option);
+	return old_option;
+}
+
+void addfd(int epollfd,int fd)
+{
+	struct epoll_event events;
+	events.data.fd = fd;
+	events.events = EPOLLIN | EPOLLET;
+	epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&events);
+	setnonblocking(fd);
+}
+
+
 int main(int argc,char *argv[])
 {
 	if(argc != 2)
@@ -399,8 +453,7 @@ int main(int argc,char *argv[])
 		usage(argv[0]);
 		exit(1);
 	}
-	
-	
+	struct all_fd sock_fd;
 	openlog("httpd",LOG_PID,LOG_LOCAL5);
 	int sock_client = -1;
 	struct sockaddr_in client_address;
@@ -408,24 +461,55 @@ int main(int argc,char *argv[])
 	int  port = atoi(argv[1]);
 	int listen_sock = start(&port);
 
-	pthread_t new_thread;
-	int ret;
-	while (1)
+	pthread_t  new_thread;
+	struct epoll_event events[MAX_EVENT_NUMBER];
+	int epollfd = epoll_create(5);
+	if (epollfd == -1)
 	{
-
-		sock_client = accept(listen_sock,(struct sockaddr*)&client_address,&client_add_len);//if accept success then return a new descriptor ,the descriptor is the net connect the server and the client ,so we can get all of the message from this descriptor.
-		if (sock_client == -1)
-		{	
-			print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
-			continue;
-		}
-		ret = pthread_create(&new_thread,NULL,&accept_request,(void *)sock_client);
-		if (ret != 0)
+		print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
+		exit(1);
+	}
+	addfd(epollfd,listen_sock);
+	while(1)
+	{
+		int ret = epoll_wait(epollfd,events,MAX_EVENT_NUMBER,-1);
+		if (ret < 0)
 		{
 			print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
-			exit(1);
+			break;
+		}
+		int i = 0;
+		for (;i<ret;i++)
+		{
+			int waitfd = events[i].data.fd;
+			if (waitfd == listen_sock)
+			{
+
+				sock_client = accept(listen_sock,(struct sockaddr*)&client_address,&client_add_len);//if accept success then return a new descriptor ,the descriptor is the net connect the server and the client ,so we can get all of the message from this descriptor.			
+				if (sock_client == -1)
+				{	
+					print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
+					continue;
+				}
+				addfd(epollfd,sock_client);
+			}
+			else if (events[i].events & EPOLLIN)
+			{
+				sock_fd.listen_sock = waitfd;
+				ret = pthread_create(&new_thread,NULL,&accept_request,(void *)&sock_fd);
+				if (ret != 0)
+				{
+					print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
+					exit(1);
+				}
+			}
+			else
+			{
+
+			}
 		}
 
 	}
+	close(epollfd);
 	return 0;
 }
