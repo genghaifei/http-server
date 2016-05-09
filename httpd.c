@@ -4,11 +4,11 @@
 void addfd(int epollfd,int fd);
 int setnonblocking(int fd);
 void send_file(int sock_client,char *path,int file_size);
-void execute_cgi(int sock_client,char *path,char *method,char *query_string);
+void execute_cgi(void *arg);//(int sock_client,char *path,char *method,char *query_string);
 void bad_request(int sock_client);
 void erase_head(int sock_client);
 void not_found(int sock_client);
-void accept_request(void* sock);
+void accept_request(struct all_fd* sock);
 void unimplement(int sock_client);
 int get_line(int sockfd,char buf[],int buf_size);
 int start(short *port);
@@ -110,11 +110,11 @@ void unimplement(int sock_client)
 	}
 }
 
-void accept_request(void* sock)
+void accept_request(struct all_fd* sock)
 {
 
-	int sock_client = ((struct all_fd*)sock)->listen_sock;
-	int epollfd = ((struct all_fd*)sock)->epollfd;
+	int sock_client = sock->listen_sock;
+	int epollfd = sock->epollfd;
 	int cgi = 0;
 	char buf[BUFFER_SIZE];
 	char *query_string;
@@ -225,7 +225,16 @@ void accept_request(void* sock)
 		}
 		else
 		{
-			execute_cgi(sock_client,path,method,query_string);
+			int ret;
+			pthread_t new_thread;
+			struct arg arg;
+			arg.sock_client = sock_client;
+			arg.path = path;
+			arg.method = method;
+			arg.query_string = query_string;
+			ret = pthread_create(&new_thread,NULL,&execute_cgi,(void *)&arg);
+
+			//execute_cgi(sock_client,path,method,query_string);
 			syslog(LOG_DEBUG,"accept_request,success exec cgi program");
 		}
 
@@ -286,8 +295,12 @@ void bad_request(int sock_client)
 	syslog(LOG_DEBUG,"send bad_request information success");
 }
 
-void execute_cgi(int sock_client,char *path,char *method,char *query_string)
+void execute_cgi(void *arg)//(int sock_client,char *path,char *method,char *query_string)
 {
+	int sock_client = ((struct arg*)arg)->sock_client;
+	char *path = ((struct arg*)arg)->path;
+	char *method = ((struct arg*)arg)->method;
+	char *query_string = ((struct arg*)arg)->query_string;
 	int input_pipe[2]= {0,0};
 	int output_pipe[2] = {0,0};
 	int content_length = -1;
@@ -446,6 +459,7 @@ void addfd(int epollfd,int fd)
 }
 
 
+
 int main(int argc,char *argv[])
 {
 	if(argc != 2)
@@ -496,12 +510,13 @@ int main(int argc,char *argv[])
 			else if (events[i].events & EPOLLIN)
 			{
 				sock_fd.listen_sock = waitfd;
-				ret = pthread_create(&new_thread,NULL,&accept_request,(void *)&sock_fd);
-				if (ret != 0)
-				{
-					print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
-					exit(1);
-				}
+				accept_request(&sock_fd);
+	//			ret = pthread_create(&new_thread,NULL,&accept_request,(void *)&sock_fd);
+	//			if (ret != 0)
+	//			{
+	//				print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
+	//				exit(1);
+	//			}
 			}
 			else
 			{

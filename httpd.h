@@ -18,6 +18,13 @@
 #include <sys/syslog.h>
 #include <sys/epoll.h>
 
+struct arg
+{
+	int sock_client;
+	char *path;
+	char *method;
+	char *query_string;
+};
 struct all_fd
 {
 	int listen_sock;
