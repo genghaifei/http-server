@@ -41,7 +41,7 @@ int main()
 	char query_string[COMM_SIZE];
 	char method[COMM_SIZE];
 	char post_data[4*COMM_SIZE];
-	char *default_sql = "SELECT * FROM student_5_class";
+	char *default_sql =(char*)"SELECT * FROM student_5_class";
 
 	bzero(query_string,sizeof(query_string));
 	bzero(method,sizeof(method));

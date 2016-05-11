@@ -22,7 +22,8 @@ ${SER_BIN}:${SER_SRC}
 .PHONY:cgi
 MAKE=make
 cgi:
-	cd $(BIN_DIR) && $(MAKE)   #at first I use for loop to do this thing but I find use it is more simple 
+	cd $(BIN_DIR) && $(MAKE)   
+#at first I use for loop to do this thing but I find use it is more simple 
 #@for name in `echo $(BIN_DIR)`;\
 		do\
 			cd $$name && $(MAKE);\
