@@ -18,17 +18,17 @@
 #include <sys/syslog.h>
 #include <sys/epoll.h>
 
-struct arg
-{
-	int sock_client;
-	char *path;
-	char *method;
-	char *query_string;
-};
 struct all_fd
 {
 	int listen_sock;
 	int epollfd;
+};
+struct arg
+{
+	struct all_fd a_fd;
+	char *path;
+	char *method;
+	char *query_string;
 };
 #define MAX_EVENT_NUMBER 1024
 #define BUFFER_SIZE 1024

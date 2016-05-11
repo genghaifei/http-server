@@ -3,6 +3,7 @@
 
 void addfd(int epollfd,int fd);
 int setnonblocking(int fd);
+void reset_oneshot(int epollfd,int fd);
 void send_file(int sock_client,char *path,int file_size);
 void execute_cgi(void *arg);//(int sock_client,char *path,char *method,char *query_string);
 void bad_request(int sock_client);
@@ -23,9 +24,9 @@ void usage(const char* proc)
 
 void print_log(const char* fun,const int line,const int error_no,const char* error)
 {
-	char *buf;
-	sprintf(buf,"line:%d,errno:%d,error:%s",fun,line,error_no,error);
-	syslog(LOG_NOTICE,buf);
+//	char *buf;
+//	sprintf(buf,"line:%d,errno:%d,error:%s",fun,line,error_no,error);
+//	syslog(LOG_NOTICE,buf);
 }
 
 void  set_sock_reuse_port(int listenfd)
@@ -113,8 +114,11 @@ void unimplement(int sock_client)
 void accept_request(struct all_fd* sock)
 {
 
+//	printf("enter the accept_request\n");		//test
+
 	int sock_client = sock->listen_sock;
 	int epollfd = sock->epollfd;
+//	printf("the connect is recviced");
 	int cgi = 0;
 	char buf[BUFFER_SIZE];
 	char *query_string;
@@ -221,25 +225,29 @@ void accept_request(struct all_fd* sock)
 		if (cgi == 0)
 		{
 			send_file(sock_client,path,st.st_size);
+			reset_oneshot(epollfd,sock_client);
 			syslog(LOG_DEBUG,"accept_request success send a html");
+			close(sock_client);
 		}
 		else
 		{
 			int ret;
 			pthread_t new_thread;
 			struct arg arg;
-			arg.sock_client = sock_client;
+			arg.a_fd.listen_sock = sock_client;
+			arg.a_fd.epollfd = epollfd;
 			arg.path = path;
 			arg.method = method;
 			arg.query_string = query_string;
 			ret = pthread_create(&new_thread,NULL,&execute_cgi,(void *)&arg);
-
+		//	reset_oneshot(epollfd,sock_client);
 			//execute_cgi(sock_client,path,method,query_string);
 			syslog(LOG_DEBUG,"accept_request,success exec cgi program");
 		}
 
-	}
-	close(sock_client);
+	}	
+//	reset_oneshot(epollfd,sock_client);
+//	close(sock_client);
 }
 
 void not_found(int sock_client)
@@ -297,10 +305,14 @@ void bad_request(int sock_client)
 
 void execute_cgi(void *arg)//(int sock_client,char *path,char *method,char *query_string)
 {
-	int sock_client = ((struct arg*)arg)->sock_client;
-	char *path = ((struct arg*)arg)->path;
-	char *method = ((struct arg*)arg)->method;
-	char *query_string = ((struct arg*)arg)->query_string;
+	int sock_client = ((struct arg*)arg)->a_fd.listen_sock;
+	int epollfd = ((struct arg*)arg)->a_fd.epollfd;
+	char path[BUFFER_SIZE];
+	char method[255];
+	char *query_string;
+	strcpy(path,((struct arg*)arg)->path);
+	strcpy(method,((struct arg*)arg)->method);
+	query_string = ((struct arg*)arg)->query_string;
 	int input_pipe[2]= {0,0};
 	int output_pipe[2] = {0,0};
 	int content_length = -1;
@@ -318,7 +330,7 @@ void execute_cgi(void *arg)//(int sock_client,char *path,char *method,char *quer
 		do {
 			numbers = get_line(sock_client,buf,sizeof(buf));
 			buf[15] = '\0';
-			if (strcasecmp(buf,"Content-Length:") == 0)
+			if (strncasecmp(buf,"Content-Length:",15) == 0)
 			{
 				content_length = atoi(&(buf[16]));
 			}
@@ -386,6 +398,9 @@ void execute_cgi(void *arg)//(int sock_client,char *path,char *method,char *quer
 		{
 			syslog(LOG_NOTICE,"waitpid failed");
 		}
+		reset_oneshot(epollfd,sock_client);
+		close(sock_client);
+
 	}
 	else if (id == 0)//child
 	{
@@ -432,13 +447,28 @@ void send_file(int sock_client,char *path,int file_size)
 	char head[BUFFER_SIZE];
 	bzero(head,sizeof(head));
 	strcat(head,"HTTP/1.0 200 OK \r\n\r\n");
-	send(sock_client,head,strlen(head),0);
-
-	if (sendfile(sock_client,fd,0,file_size) == -1)
+	int ret = send(sock_client,head,strlen(head),0);
+	if (ret == -1)
 	{
 		print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
+		return;
+	}
+	ret = sendfile(sock_client,fd,0,file_size);
+	if (ret == -1)
+	{
+		print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
+		return;
 	}
 	syslog(LOG_DEBUG,"send_file success");
+}
+
+void reset_oneshot(int epollfd,int fd)
+{
+//	printf("the reset_oneshot is called in %d\n",line);
+	struct epoll_event events;
+	events.data.fd = fd;
+	events.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+	epoll_ctl(epollfd,EPOLL_CTL_MOD,fd,&events);
 }
 
 int setnonblocking(int fd)
@@ -453,7 +483,7 @@ void addfd(int epollfd,int fd)
 {
 	struct epoll_event events;
 	events.data.fd = fd;
-	events.events = EPOLLIN | EPOLLET;
+	events.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
 	epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&events);
 	setnonblocking(fd);
 }
@@ -484,43 +514,49 @@ int main(int argc,char *argv[])
 		exit(1);
 	}
 	addfd(epollfd,listen_sock);
+//	printf("add listenfd is %d\n",listen_sock);
 	while(1)
 	{
+//		printf("maybe stop in there 1 \n");
 		int ret = epoll_wait(epollfd,events,MAX_EVENT_NUMBER,-1);
+		printf("i");							//test
 		if (ret < 0)
 		{
 			print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
-			break;
+//			printf("errno is %d,error is %s\n",errno,strerror(errno));
+			if (errno == EINTR)
+				continue;
+			else
+				break;
 		}
 		int i = 0;
 		for (;i<ret;i++)
 		{
 			int waitfd = events[i].data.fd;
+//			printf("the waitfd = %d\n",waitfd);					//test
 			if (waitfd == listen_sock)
 			{
-
-				sock_client = accept(listen_sock,(struct sockaddr*)&client_address,&client_add_len);//if accept success then return a new descriptor ,the descriptor is the net connect the server and the client ,so we can get all of the message from this descriptor.			
+				sock_client = accept(listen_sock,(struct sockaddr*)&client_address,&client_add_len);	
 				if (sock_client == -1)
 				{	
 					print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
 					continue;
 				}
 				addfd(epollfd,sock_client);
+//				printf("a new connect is build sock_client is %d\n",sock_client);				//test
+				
+				reset_oneshot(epollfd,listen_sock);
 			}
-			else if (events[i].events & EPOLLIN)
+			else if (events[i].events & EPOLLIN )
 			{
 				sock_fd.listen_sock = waitfd;
+				sock_fd.epollfd = epollfd;
+//				printf("the new connect will be made\n");			//test
 				accept_request(&sock_fd);
-	//			ret = pthread_create(&new_thread,NULL,&accept_request,(void *)&sock_fd);
-	//			if (ret != 0)
-	//			{
-	//				print_log(__FUNCTION__,__LINE__,errno,strerror(errno));
-	//				exit(1);
-	//			}
+
 			}
 			else
 			{
-
 			}
 		}
 
